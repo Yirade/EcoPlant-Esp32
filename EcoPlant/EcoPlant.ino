@@ -196,13 +196,14 @@ const String styles = R"=====(
       .container {
         display: flex;
         align-items: center;
-        max-width: 750px;
+        max-width: 80%;
         margin: 0 auto;
         padding: 25px;
         background-color: #fff;
         border-radius: 14px;
         position: relative;
         box-shadow: rgba(0, 0, 0, 0.075) 0px 2px 4px 0px;
+        overflow: hidden;
       }
 
       .logo-container {
@@ -233,7 +234,7 @@ const String styles = R"=====(
         margin-bottom: 50px;
       }
 
-      p {
+      .footer {
         position: absolute;
         bottom: 10px;
         left: 30px;
@@ -306,6 +307,56 @@ const String styles = R"=====(
       .title {
         margin-left: 25px;
       }
+
+      img {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        max-width: 70%;
+        margin-bottom: 50px;
+      }
+
+      .content {
+        margin-left: 25px;
+        margin-right: 300px;
+        margin-top: 80px;
+      }
+
+      .options {
+        display: flex;
+        flex-direction: column;
+        margin-left: 25px;
+        margin-right: 25px;
+        background-color: #d2f8d2;
+        padding: 65px;
+        border-radius: 14px;
+        position: absolute;
+        right: -50px;
+      }
+
+      .dash-button {
+        background-color: #4CAF50;
+        color: white;
+        padding: 14px 20px;
+        margin: 8px 0;
+        border: none;
+        cursor: pointer;
+        width: 80%;
+        border-radius: 14px;
+        margin-top: 20px;
+        text-align: center;
+        text-decoration: none;
+        position: absolute;
+        bottom: 15px;
+      }
+
+      .column {
+        flex-direction: column;
+      }
+
+      .ok {
+        margin-top: 100px;
+      }
       </style>
 )=====";
 
@@ -320,6 +371,95 @@ void saveStringToCharArray(char* charArray, const String& str, size_t size) {
 Preferences preferences;
 
 WebServer server(80);
+
+void handleRoot()
+{
+  Serial.println("Root");
+  if (WiFi.status() == WL_CONNECTED && data.device_id[0] != '\0' && data.api_key[0] != '\0')
+  {
+    Serial.println("Redirecting to dashboard");
+    server.sendHeader("Location", "/dashboard", true); // Imposta l'intestazione "Location"
+  }
+  else
+  {
+    Serial.println("Redirecting to login");
+    server.sendHeader("Location", "/login", true); // Imposta l'intestazione "Location"
+  }
+  server.send(302, "text/plain", "");
+}
+
+void handleDashboard() {
+  String ssid = WiFi.SSID(); // Ottieni l'SSID della rete WiFi a cui sei connesso
+  int signalStrength = WiFi.RSSI(); // Ottieni la potenza del segnale WiFi
+  String deviceId = data.device_id; // Ottieni l'ID del dispositivo
+  String apiKey = data.api_key; // Ottieni l'API Key
+  String apName = data.apName; // Ottieni il nome dell'Access Point
+  String apPassword = data.apPassword; // Ottieni la password dell'Access Point
+  if (data.apPassword == "") {
+    apPassword = "Nessuna password";
+  }
+
+  String content = R"=====(
+  <!DOCTYPE html>
+  <html>
+  <head>
+    )=====";
+  content += styles; // I tuoi stili CSS esistenti
+  content += R"=====(
+    <title>Dashboard - EcoPlant</title>
+  </head>
+  <body>
+    <div class="container">
+     <div class="logo-container">
+         )=====";
+  content += svgIcon;
+  content += R"=====(
+        <!-- Fine icona SVG -->
+        <h1>EcoPlant</h1> <!-- Testo del logo -->
+      </div>
+      <h1 class="title">Dashboard:</h1>
+      <div class="content">
+      <p><strong>SSID:</strong> )=====";
+  content += ssid;
+  content += R"=====(</p>
+      <p><strong>Potenza del segnale:</strong> )=====";
+  content += String(signalStrength);
+  content += R"=====( dBm</p>
+      <p><strong>ID del dispositivo:</strong> )=====";
+  content += deviceId;
+  content += R"=====(</p>
+      <p><strong>API Key:</strong> )=====";
+  content += apiKey;
+  content += R"=====(</p>
+      <p><strong>Nome Access Point:</strong> )=====";
+  content += apName;
+  content += R"=====(</p>
+      <p><strong>Password Access Point:</strong> )=====";
+  content += apPassword;
+  content += R"=====(</p></div>
+  <div class="options">
+      <h3>Opzioni</h2>
+      <ul>
+        <li><a href="/login">Cambia account</a></li>
+        <li><a href="/wifi">Cambia rete WiFi</a></li>
+        <li><a href="/reset">Resetta tutto</a></li>
+      </ul>
+      </div>
+    </div>
+  </body>
+  </html>
+  )=====";
+
+  server.send(200, "text/html", content);
+}
+
+void handleReset() {
+  // Resetta i dati
+  resetData();
+  // Reindirizza alla pagina di login
+  server.sendHeader("Location", "/login", true);
+  server.send(302, "text/plain", "");
+}
 
 void handleWifi()
 {
@@ -380,6 +520,37 @@ void handleWifi()
   server.send(200, "text/html", content);
 }
 
+void handleSuccess() {
+  String content = R"=====(
+  <!DOCTYPE html>
+  <html>
+  <head>
+    )=====";
+  content += styles; // I tuoi stili CSS esistenti
+  content += R"=====(
+    <meta charset="UTF-8">
+    <title>Success - EcoPlant</title>
+  </head>
+  <body>
+    <div class="container column">
+      <div class="logo-container">
+        )=====";
+  content += svgIcon;
+  content += R"=====(
+        <!-- Fine icona SVG -->
+        <h1>EcoPlant</h1> <!-- Testo del logo -->
+      </div>
+      <h1 class="title ok">Tutto e OK!</h1>
+      <img src="https://cdn.dribbble.com/users/23969/screenshots/2112979/check-animation-v2.gif" alt="Immagine di successo">
+      <a href="/dashboard" class="dash-button">Vai alla dashboard</a>
+    </div>
+  </body>
+  </html>
+  )=====";
+
+  server.send(200, "text/html", content);
+}
+
 void handleConnect()
 {
   String ssid = server.arg("ssid");
@@ -405,7 +576,7 @@ void handleConnect()
     saveStringToCharArray(data.wifiSsid, ssid, sizeof(data.wifiSsid));
     saveStringToCharArray(data.wifiPassword, password, sizeof(data.wifiPassword));
     refreshData();
-    server.sendHeader("Location", "/login");
+    server.sendHeader("Location", "/login", true);
     server.send(302, "text/plain", "");
   }
   else
@@ -415,12 +586,52 @@ void handleConnect()
   }
 }
 
+void registerDevice() {
+  if (WiFi.status() == WL_CONNECTED) { //Check WiFi connection status
+
+    HTTPClient http;
+
+    http.begin(baseUrl + "api/v1/register-device/"); //Specify request destination
+    http.addHeader("Content-Type", "application/json"); //Specify content-type header
+    http.addHeader("Authorization", "Bearer " + token); //Add Authorization header
+
+    int httpCode = http.POST(""); //Send the request
+
+    if (httpCode > 0) { //Check the returning code
+
+      String payload = http.getString(); //Get the request response payload
+
+      DynamicJsonDocument doc(1024);
+      deserializeJson(doc, payload);
+
+      const char* device_id = doc["device_id"];
+      const char* api_key = doc["api_key"];
+
+      Serial.println(device_id);
+      Serial.println(api_key);
+      saveStringToCharArray(data.device_id, device_id, sizeof(data.device_id));
+      saveStringToCharArray(data.api_key, api_key, sizeof(data.api_key));
+      refreshData();
+    }
+
+    http.end(); //Close connection
+
+    server.sendHeader("Location", "/success", true);
+
+  } else {
+
+    Serial.println("Error in WiFi connection");
+
+  }
+  server.send(302, "text/plain", "");
+}
+
 void handleLogin()
 {
 
   if (WiFi.status() != WL_CONNECTED)
   {
-    server.sendHeader("Location", "/wifi");
+    server.sendHeader("Location", "/wifi", true);
     server.send(302, "text/plain", "");
     return;
   }
@@ -453,7 +664,7 @@ void handleLogin()
         <input type='password' name='password' required><br>
         <input type='submit' value='Login'>
       </form>
-      <p>Non hai un account EcoPlant? <a href='/register'>Registrati qui</a></p>
+      <p class="footer">Non hai un account EcoPlant? <a href='/register'>Registrati qui</a></p>
     </div>
     </body>
     </html>
@@ -494,7 +705,7 @@ void handleRegister()
         <input type='password' name='password' required><br>
         <input type='submit' value='Registrati'>
       </form>
-      <p>Hai gia un account EcoPlant? <a href='/login'>Effettua il login qui</a></p>
+      <p class="footer">Hai gia un account EcoPlant? <a href='/login'>Effettua il login qui</a></p>
     </div>
     </body>
     </html>
@@ -547,7 +758,9 @@ void handleLoginSubmit()
       token = accessToken;
 
       // Utilizza l'accessToken per effettuare altre richieste al backend
-      // ...
+      
+      // Registra il dispositivo
+      registerDevice();
     }
     else
     {
@@ -612,6 +825,9 @@ void handleRegisterSubmit()
       token = accessToken;
 
       // Utilizza l'accessToken per effettuare altre richieste al backend
+
+      // Registra il dispositivo
+      registerDevice();
     }
     else if (httpResponseCode == 409){
       server.send(409, "text/plain", "Username o email già in uso");
@@ -621,7 +837,7 @@ void handleRegisterSubmit()
       // Gestisci eventuali errori di registrazione
       server.send(400, "text/plain", "Registrazione fallita");
     }
-    
+
     http.end();
   }
 }
@@ -689,7 +905,7 @@ void setup()
 
   // Connessione all'access point ESP32
   Serial.println("Connessione all'access point ESP32...");
-  if (data.isApOn)
+  if (data.isApOn = '1')
   {
     if (String(data.apName) != "" && String(data.apPassword) != "")
     {
@@ -721,13 +937,15 @@ void setup()
     Serial.println("Access point ESP32 non connesso");
   }
 
-  server.on("/", handleLogin);
+  server.on("/", handleRoot);
   server.on("/wifi", handleWifi);
   server.on("/connect", handleConnect);
   server.on("/login", handleLogin);
   server.on("/register", handleRegister);
   server.on("/login-submit", HTTP_GET, handleLoginSubmit);
   server.on("/register-submit", HTTP_GET, handleRegisterSubmit);
+  server.on("/success", handleSuccess);
+  server.on("/dashboard", handleDashboard);
 
   server.begin();
   Serial.println("Server avviato");
