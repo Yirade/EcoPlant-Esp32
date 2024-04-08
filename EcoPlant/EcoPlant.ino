@@ -51,6 +51,10 @@ const char *ssidKey = data.wifiSsid;  // Chiave per la rete WiFi
 const char *passwordKey = data.wifiPassword;  // Chiave per la password della rete WiFi
 const String baseUrl = "https://ecoplant-back.yirade.dev/";
 
+// token temporaneo
+String token;
+
+// Definisci l'icona SVG
 const String svgIcon = R"=====(
   <svg class="logo-svg" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" viewBox="0 0 1000 1000" enable-background="new 0 0 1000 1000" xml:space="preserve">
           <svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
@@ -426,6 +430,7 @@ void handleLogin()
     <html>
     <head>
       <title>Login - EcoPlant</title>
+      <meta charset="UTF-8">
       <!-- Includi eventuali stili CSS necessari -->
       )=====";
   content += styles;
@@ -441,7 +446,7 @@ void handleLogin()
         <h1>EcoPlant</h1> <!-- Testo del logo -->
       </div>
       <h1 class="title">Login:</h1>
-      <form method='post' action='/login'>
+      <form method='get' action='/login-submit'>
         <label for='username'>Username:</label><br>
         <input type='text' name='username' required><br>
         <label for='password'>Password:</label><br>
@@ -464,6 +469,7 @@ void handleRegister()
     <html>
     <head>
       <title>Registrazione - EcoPlant</title>
+      <meta charset="UTF-8">
       <!-- Includi eventuali stili CSS necessari -->
       )=====";	
   content += styles;
@@ -479,7 +485,7 @@ void handleRegister()
         <h1>EcoPlant</h1> <!-- Testo del logo -->
       </div>
       <h1 class="title">Registrazione</h1>
-      <form method='post' action='/register'>
+      <form method='get' action='/register-submit'>
         <label for='username'>Username:</label><br>
         <input type='text' name='username' required><br>
         <label for='email'>Email:</label><br>
@@ -499,91 +505,127 @@ void handleRegister()
 
 void handleLoginSubmit()
 {
-  String username = server.arg("username");
-  String password = server.arg("password");
-
-  // Esempio di invio dei dati al backend per il login
-  HTTPClient http;
-  http.begin(baseUrl + "api/v1/login");
-  http.addHeader("Content-Type", "application/json");
-
-  // Crea il JSON da inviare
-  StaticJsonDocument<200> json;
-  json["username"] = username;
-  json["password"] = password;
-
-  // Serializza il JSON in una stringa
-  String jsonString;
-  serializeJson(json, jsonString);
-
-  // Invia la richiesta POST con i dati di login
-  int httpResponseCode = http.POST(jsonString);
-
-  // Gestisce la risposta dal backend
-  if (httpResponseCode == 200)
+  if (server.hasArg("username") && server.hasArg("password"))
   {
-    // Ricevi e gestisci i dati di accesso
-    String response = http.getString();
-    StaticJsonDocument<200> jsonResponse;
-    deserializeJson(jsonResponse, response);
+    Serial.println("Richiesta di login");
+    String username = server.arg("username");
+    String password = server.arg("password");
 
-    String accessToken = jsonResponse["access"];
+    // Esempio di invio dei dati al backend per il login
+    HTTPClient http;
+    http.begin(baseUrl + "api/v1/login/");
+    http.addHeader("Content-Type", "application/json");
 
-    // Utilizza l'accessToken per effettuare altre richieste al backend
+    // Crea il JSON da inviare
+    StaticJsonDocument<200> json;
+    json["username"] = username;
+    json["password"] = password;
+
+    // Serializza il JSON in una stringa
+    String jsonString;
+    serializeJson(json, jsonString);
+
+    // Invia la richiesta POST con i dati di login
+    int httpResponseCode = http.POST(jsonString);
+
+    // Gestisce la risposta dal backend
+    if (httpResponseCode == 200)
+    {
+      Serial.println("Login effettuato con successo");
+      // Ricevi e gestisci i dati di accesso
+      String response = http.getString();
+      StaticJsonDocument<200> jsonResponse;
+      deserializeJson(jsonResponse, response);
+
+      Serial.println(response);
+
+      String accessToken = jsonResponse["access"];
+
+      Serial.print("Access token: ");
+      Serial.println(accessToken);
+
+      token = accessToken;
+
+      // Utilizza l'accessToken per effettuare altre richieste al backend
+      // ...
+    }
+    else
+    {
+      // Gestisci eventuali errori di login
+      server.send(401, "text/plain", "Login fallito");
+    }
+
+    http.end();
   }
   else
   {
-    // Gestisci eventuali errori di login
-    server.send(401, "text/plain", "Login fallito");
+    server.send(400, "text/plain", "Parametri mancanti");
   }
-
-  http.end();
 }
 
 void handleRegisterSubmit()
 {
-  String username = server.arg("username");
-  String email = server.arg("email");
-  String password = server.arg("password");
-
-  // Esempio di invio dei dati al backend per la registrazione
-  HTTPClient http;
-  http.begin(baseUrl + "api/v1/register");
-  http.addHeader("Content-Type", "application/json");
-
-  // Crea il JSON da inviare
-  StaticJsonDocument<200> json;
-  json["username"] = username;
-  json["email"] = email;
-  json["password"] = password;
-
-  // Serializza il JSON in una stringa
-  String jsonString;
-  serializeJson(json, jsonString);
-
-  // Invia la richiesta POST con i dati di registrazione
-  int httpResponseCode = http.POST(jsonString);
-
-  // Gestisce la risposta dal backend
-  if (httpResponseCode == 200)
+  if (!server.hasArg("username") || !server.hasArg("email") || !server.hasArg("password"))
   {
-    // Ricevi e gestisci i dati di accesso
-    String response = http.getString();
-    StaticJsonDocument<200> jsonResponse;
-    deserializeJson(jsonResponse, response);
+    server.send(400, "text/plain", "Parametri mancanti");
+    return;
+  } else {
+    Serial.println("Richiesta di registrazione");
+    String username = server.arg("username");
+    String email = server.arg("email");
+    String password = server.arg("password");
 
-    String accessToken = jsonResponse["access"];
+    // Esempio di invio dei dati al backend per la registrazione
+    HTTPClient http;
+    http.begin(baseUrl + "api/v1/register/");
+    http.addHeader("Content-Type", "application/json");
 
-    // Utilizza l'accessToken per effettuare altre richieste al backend
+    // Crea il JSON da inviare
+    StaticJsonDocument<200> json;
+    json["username"] = username;
+    json["email"] = email;
+    json["password"] = password;
+
+    // Serializza il JSON in una stringa
+    String jsonString;
+    serializeJson(json, jsonString);
+
+    // Invia la richiesta POST con i dati di registrazione
+    int httpResponseCode = http.POST(jsonString);
+
+    // Gestisce la risposta dal backend
+    if (httpResponseCode == 201)
+    {
+      Serial.println("Registrazione effettuata con successo");
+      // Ricevi e gestisci i dati di accesso
+      String response = http.getString();
+      StaticJsonDocument<200> jsonResponse;
+      deserializeJson(jsonResponse, response);
+
+      Serial.println(response);
+
+      String accessToken = jsonResponse["access"];
+
+      Serial.print("Access token: ");
+      Serial.println(accessToken);
+
+      token = accessToken;
+
+      // Utilizza l'accessToken per effettuare altre richieste al backend
+    }
+    else if (httpResponseCode == 409){
+      server.send(409, "text/plain", "Username o email già in uso");
+    }
+    else
+    {
+      // Gestisci eventuali errori di registrazione
+      server.send(400, "text/plain", "Registrazione fallita");
+    }
+    
+    http.end();
   }
-  else
-  {
-    // Gestisci eventuali errori di registrazione
-    server.send(400, "text/plain", "Registrazione fallita");
-  }
-
-  http.end();
 }
+
 
 void setup()
 {
@@ -682,10 +724,10 @@ void setup()
   server.on("/", handleLogin);
   server.on("/wifi", handleWifi);
   server.on("/connect", handleConnect);
-  server.on("/login", HTTP_POST, handleLoginSubmit);
-  server.on("/register", HTTP_POST, handleRegisterSubmit);
   server.on("/login", handleLogin);
   server.on("/register", handleRegister);
+  server.on("/login-submit", HTTP_GET, handleLoginSubmit);
+  server.on("/register-submit", HTTP_GET, handleRegisterSubmit);
 
   server.begin();
   Serial.println("Server avviato");
