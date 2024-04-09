@@ -576,7 +576,7 @@ void handleConnect()
     saveStringToCharArray(data.wifiSsid, ssid, sizeof(data.wifiSsid));
     saveStringToCharArray(data.wifiPassword, password, sizeof(data.wifiPassword));
     refreshData();
-    server.sendHeader("Location", "/login", true);
+    server.sendHeader("Location", "/", true);
     server.send(302, "text/plain", "");
   }
   else
@@ -675,6 +675,12 @@ void handleLogin()
 
 void handleRegister()
 {
+  if (WiFi.status() != WL_CONNECTED)
+  {
+    server.sendHeader("Location", "/wifi", true);
+    server.send(302, "text/plain", "");
+    return;
+  }
   String content = R"=====(
     <!DOCTYPE html>
     <html>
@@ -946,6 +952,7 @@ void setup()
   server.on("/register-submit", HTTP_GET, handleRegisterSubmit);
   server.on("/success", handleSuccess);
   server.on("/dashboard", handleDashboard);
+  server.on("/reset", handleReset);
 
   server.begin();
   Serial.println("Server avviato");
