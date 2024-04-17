@@ -471,6 +471,12 @@ void handleWifi()
     )=====";
   content += styles;
   content += R"=====(
+    <style>
+      .scrollable {
+        max-height: 300px; /* Imposta l'altezza massima del div */
+        overflow-y: auto; /* Rende il div scrollabile verticalmente */
+      }
+    </style>
     <title>WiFi - EcoPlant</title>
   </head>
   <body>
@@ -483,6 +489,7 @@ void handleWifi()
         <h1>EcoPlant</h1> <!-- Testo del logo -->
       </div>
       <h1 class="title">Reti WiFi Disponibili:</h1>
+      <div class="scrollable">
   )=====";
 
   int numNetworks = WiFi.scanNetworks();
@@ -513,6 +520,7 @@ void handleWifi()
   }
 
   content += R"=====(
+    </div>
     </div>
   </body>
   </html>
