@@ -456,6 +456,7 @@ void handleDashboard() {
 void handleReset() {
   // Resetta i dati
   resetData();
+  ESP.restart();
   // Reindirizza alla pagina di login
   server.sendHeader("Location", "/login", true);
   server.send(302, "text/plain", "");
