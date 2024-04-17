@@ -4,6 +4,7 @@
 #include <ArduinoJson.h>
 #include <Preferences.h>
 #include <EEPROM.h>
+#include <DHT.h>
 
 // Definisci la struttura
 struct Data {
@@ -15,6 +16,17 @@ struct Data {
   char wifiSsid[33];  // SSID della rete WiFi
   char wifiPassword[65];  // Password della rete WiFi
 };
+
+#define DHTPIN 4     // Pin digitale a cui è collegato il sensore DHT11
+#define DHTTYPE DHT11   // DHT 11
+
+DHT dht(DHTPIN, DHTTYPE);
+
+float airTemperature;
+float airHumidity;
+float soilMoisture;
+float waterLevel;
+bool light;
 
 // Crea un'istanza della struttura
 Data data;
@@ -857,6 +869,40 @@ void handleRegisterSubmit()
   }
 }
 
+void sendSensorData() {
+  if (WiFi.status() == WL_CONNECTED) { //Controlla la connessione WiFi
+    if (strlen(data.api_key) == 0) { // Controlla se l'API key esiste
+      Serial.println("API key non esiste, richiesta non inviata");
+      return; // Termina la funzione se l'API key non esiste
+    }
+
+    HTTPClient http;
+
+    // Inizia la connessione e invia l'intestazione HTTP
+    http.begin(baseUrl + "api/v1/device-data/"); 
+    http.addHeader("Content-Type", "application/json");
+    http.addHeader("X-API-KEY", data.api_key); // Aggiungi l'header dell'API key
+
+    // Prepara il corpo della richiesta
+    String httpRequestData = "{\"air_temperature\":" + String(airTemperature) + ", \"air_humidity\":" + String(airHumidity) + ", \"soil_moisture\":" + String(soilMoisture) + ", \"water_level\":" + String(waterLevel) + ", \"light\":" + (light ? "true" : "false") + "}";
+    
+    // Invia la richiesta HTTP POST
+    int httpResponseCode = http.POST(httpRequestData);
+
+    if (httpResponseCode > 0) {
+      String response = http.getString(); // Ottieni la risposta dal server
+      Serial.println(httpResponseCode);   // Stampa il codice di risposta HTTP
+      Serial.println(response);           // Stampa la risposta dal server
+    } else {
+      Serial.print("Error on sending POST: ");
+      Serial.println(httpResponseCode);
+    }
+
+    http.end(); // Chiudi la connessione
+  } else {
+    Serial.println("Error in WiFi connection");
+  }
+}
 
 void setup()
 {
@@ -970,4 +1016,26 @@ void setup()
 void loop()
 {
   server.handleClient();
+  dht.begin();
+
+  // Leggi l'umidità
+  airHumidity = dht.readHumidity();
+  // Leggi la temperatura in Celsius (il valore predefinito)
+  airTemperature = dht.readTemperature();
+
+  // Controlla se le letture sono valide, altrimenti stampa un errore
+  if (isnan(airHumidity) || isnan(airTemperature)) {
+    Serial.println("Failed to read from DHT sensor!");
+    return;
+  } else {
+    sendSensorData();
+  }
+
+  // Stampa le letture sul monitor seriale
+  // Serial.print("Humidity: ");
+  // Serial.print(h);
+  // Serial.print(" %\t");
+  // Serial.print("Temperature: ");
+  // Serial.print(t);
+  // Serial.println(" *C");
 }
